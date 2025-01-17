@@ -1,47 +1,74 @@
 #include <Wire.h>
-#include <SSD1306Wire.h> // Inclure la bibliothèque SSD1306Wire
+#include <SSD1306Wire.h>  // Pour l'écran OLED
+#include <ESP8266WiFi.h>  // Pour le Wi-Fi
+#include "config.h"       // Inclure le fichier de configuration
 
 // Initialisation de l'écran OLED
 SSD1306Wire display(0x3C, D2, D1); // Adresse I2C, SDA, SCL
 
-// Variables pour l'animation
-int xPosition = 0;   // Position X initiale
-int direction = 1;   // Direction de déplacement (1 = droite, -1 = gauche)
-const int yPosition = 22; // Position Y fixe pour le texte
+WiFiClient client;
+
+// Fonction pour la connexion Wi-Fi
+void connectToWiFi() {
+  Serial.println("Connexion au Wi-Fi...");
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  // Attente de connexion
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nConnecté au Wi-Fi !");
+  Serial.print("Adresse IP : ");
+  Serial.println(WiFi.localIP());
+}
+
+// Fonction pour afficher un message avec un balayage horizontal
+void scrollText(String message, int y, int delayTime) {
+  int messageWidth = message.length() * 8; // Largeur approximative du message (chaque caractère ~8px)
+  int screenWidth = 128; // Largeur de l'écran OLED
+
+  for (int x = screenWidth; x >= -messageWidth; x--) {
+    display.clear(); // Efface l'écran
+    display.drawString(x, y, message); // Dessine le texte à la position x
+    display.display(); // Met à jour l'écran
+    delay(delayTime); // Attente pour créer l'animation
+  }
+}
 
 void setup() {
-  // Initialisation du port série pour le débogage
+  // Initialisation du port série
   Serial.begin(115200);
-  Serial.println("Initialisation de l'écran OLED...");
 
-  // Initialisation de l'écran
+  // Initialisation de l'écran OLED
   display.init();
   display.clear();
-  display.flipScreenVertically(); // Optionnel : inverser l'écran si nécessaire
+  display.flipScreenVertically(); // Optionnel
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
 
-  // Configuration de la police
-  display.setFont(ArialMT_Plain_16); // Police de taille 16
+  // Afficher un message initial
+  display.drawString(0, 22, "Connexion WiFi...");
+  display.display();
+
+  // Connexion au Wi-Fi
+  connectToWiFi();
+
+  // Afficher l'état Wi-Fi sur l'écran
+  display.clear();
+  display.drawString(0, 22, "WiFi Connecte!");
+  display.display();
+  delay(1000);
 }
 
 void loop() {
-  // Effacer l'écran
-  display.clear();
+  // Premier message avec balayage
+  scrollText("WiFi Connecte !", 0, 30); // Texte à balayer à y=0 avec un délai de 50 ms
 
-  // Dessiner le texte "Hello" à la position actuelle
-  display.setTextAlignment(TEXT_ALIGN_LEFT); // Aligner à gauche
-  display.drawString(xPosition, yPosition, "Hello");
+  // Adresse IP avec balayage
+  String ipMessage = "Adresse IP : " + WiFi.localIP().toString();
+  scrollText(ipMessage, 22, 30); // Texte à balayer à y=22 avec un délai de 50 ms
 
-  // Mettre à jour l'écran pour afficher le texte
-  display.display();
-
-  // Mettre à jour la position X
-  xPosition += direction;
-
-  // Inverser la direction si le texte atteint les bords de l'écran
-  if (xPosition <= 0 || xPosition >= 128 - 50) { // 128 est la largeur de l'écran, 50 est la largeur approximative de "Hello"
-    direction *= -1; // Inverser la direction
-  }
-
-  // Ajouter un petit délai pour ralentir l'animation
-  delay(30);
+  // Pause avant de recommencer
+  delay(1000);
 }
